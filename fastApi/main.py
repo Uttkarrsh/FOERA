@@ -2,8 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
 from auth import hash_password, verify_password, create_access_token, decode_access_token
-from models import User 
-from schema import UserCreate, UserResponse, UserLogin, Token
+from models import User, Products
+from schema import UserCreate, UserResponse, UserLogin, Token, ProductCreate, ProductResponse
 
 
 app = FastAPI()
@@ -43,4 +43,15 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     access_token = create_access_token(data={"sub": db_user.name})
     return {"access_token": access_token, "token_type": "bearer"}
 
-
+@app.post("/add-products", response_model=ProductResponse)
+def create_product(product: ProductCreate, db: Session = Depends(get_db)):
+    db_product = Products(
+        name=product.name,
+        category=product.category,
+        description=product.description,
+        image=product.image
+    )
+    db.add(db_product)
+    db.commit()
+    db.refresh(db_product)
+    return db_product
