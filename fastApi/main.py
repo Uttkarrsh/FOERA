@@ -247,6 +247,39 @@ def create_address(user_id: int, address: AddressCreate, db: Session = Depends(g
     return new_address
 
 
+@app.get("/user/{user_id}/address", response_model=AddressResponse)
+def get_address(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    address = db.query(Address).filter(Address.user_id == user_id).first()
+    if not address:
+        raise HTTPException(status_code=404, detail="Address not found")
+
+    return address
+
+
+@app.put("/user/{user_id}/address", response_model=AddressResponse)
+def update_address(user_id: int, address: AddressCreate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    existing_address = db.query(Address).filter(Address.user_id == user_id).first()
+    if not existing_address:
+        raise HTTPException(status_code=404, detail="Address not found")
+
+    existing_address.address_line1 = address.address_line1
+    existing_address.address_line2 = address.address_line2
+    existing_address.city = address.city
+    existing_address.state = address.state
+    existing_address.pincode = address.pincode
+
+    db.commit()
+    db.refresh(existing_address)
+
+    return existing_address
 
 
 
