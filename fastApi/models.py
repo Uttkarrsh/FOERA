@@ -55,6 +55,7 @@ class Cart(Base):
 class Address(Base):
     __tablename__ = "address"
     id = Column(Integer, primary_key=True, nullable=False)
+    name = Column(String, nullable=True)
     address_line1 = Column(String, nullable=False)
     address_line2 = Column(String, nullable=False)
     city = Column(String, nullable=False)
