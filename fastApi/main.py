@@ -55,12 +55,14 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
         name=product.name,
         category=product.category,
         description=product.description,
-        image=product.image
+        image=product.image,
+        cost=product.cost
     )
     db.add(db_product)
     db.commit()
     db.refresh(db_product)
     return db_product
+
 
 @app.get("/products/{category}" ,response_model=list[ProductResponse])
 def get_by_category(category: str, db: Session = Depends(get_db)):
@@ -129,18 +131,26 @@ def get_cart_items(user_id: int, db: Session = Depends(get_db)):
     cart_items = db.query(Cart).filter(Cart.user_id == user_id).all()
     return cart_items
 
-@app.delete("/user/{user_id}/cart/{product_id}", status_code=204)
+
+
+@app.delete("/user/{user_id}/cart/{product_id}", status_code=200)
 def remove_from_cart(user_id: int = Path(..., title="User ID"), product_id: int = Path(..., title="Product ID"), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     cart_item = db.query(Cart).filter(Cart.user_id == user_id, Cart.product_id == product_id).first()
+    if cart_item.quantity>0:
+        cart_item.quantity=cart_item.quantity-1
+        db.commit()
+    
+    if cart_item.quantity == 0:
+        db.delete(cart_item)
+        db.commit()
+
     if not cart_item:
         raise HTTPException(status_code=404, detail="Product not found in cart")
-
-    db.delete(cart_item)
-    db.commit()
+    
 
     return {"detail": "Product removed from cart successfully"}
 
@@ -194,6 +204,7 @@ def get_checkout(user_id: int, db: Session = Depends(get_db)):
 
 
 
+
 @app.post("/user/{user_id}/address", response_model=AddressResponse)
 def create_address(user_id: int, address: AddressCreate, db: Session = Depends(get_db)):
     # Check if user exists
@@ -215,6 +226,10 @@ def create_address(user_id: int, address: AddressCreate, db: Session = Depends(g
     db.refresh(new_address)
     
     return new_address
+
+
+
+
 
 @app.post("/user/{user_id}/checkout", response_model=CheckoutResponse)
 def checkout(user_id: int, db: Session = Depends(get_db)):
