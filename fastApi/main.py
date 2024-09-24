@@ -90,6 +90,25 @@ def add_to_wishlist(user_id: int = Path(..., title="User ID"), product_id: int =
     db.refresh(wishlist_item)
     return {"message": f"Product {product_id} added to wishlist for user {user_id}"}
 
+
+@app.delete("/user/{user_id}/wishlist/{product_id}", status_code=200)
+def remove_from_wishlist(user_id: int = Path(..., title="User ID"), product_id: int = Path(..., title="Product ID"), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    wishlist_item = db.query(Wishlist).filter(Wishlist.user_id == user_id, Wishlist.product_id == product_id).first()
+    
+    db.delete(wishlist_item)
+    db.commit()
+
+    if not wishlist_item:
+        raise HTTPException(status_code=404, detail="Product not found in cart")
+    
+
+    return {"detail": "Product removed from Wishlist successfully"}
+
+
 @app.get("/user/{user_id}/wishlist", response_model=List[WishlistItemResponse])
 def get_wishlist(user_id: int, db: Session = Depends(get_db)):
   
