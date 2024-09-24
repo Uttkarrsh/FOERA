@@ -84,3 +84,20 @@ class AddressResponse(BaseModel):
 
     class Config:
         orm_mode = True
+    
+class OrderResponse(BaseModel):
+    message: str
+    order_id: int
+    total_cost: float
+    cart_items: List[CartItemResponse]
+
+    class Config:
+        orm_mode = True
+
+class CheckoutResponse(BaseModel):
+    order_id: int
+    cart_items: List[CartItemResponse]
+    total_cost: float
+
+    class Config:
+        orm_mode = True

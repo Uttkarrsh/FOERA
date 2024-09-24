@@ -1,6 +1,8 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, TIMESTAMP, Boolean, text, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, TIMESTAMP, Boolean, text, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
+from datetime import datetime
+
 
 
 
@@ -28,6 +30,7 @@ class User(Base):
     password = Column(String);
     wishlist_items = relationship("Wishlist", back_populates="user")
     cart_items = relationship("Cart", back_populates="user")
+    address = relationship("Address", back_populates="user")
 
 
 class Wishlist(Base):
@@ -58,4 +61,19 @@ class Address(Base):
     state = Column(String, nullable=False)
     pincode = Column(String, nullable=False)
     user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
-    user = relationship("User", back_populates="addresses")
+    user = relationship("User", back_populates="address")
+
+class Order(Base):
+    __tablename__ = 'orders'
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("user.id"))
+    total_cost = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class OrderItem(Base):
+    __tablename__ = 'order_items'
+    id = Column(Integer, primary_key=True, index=True)
+    order_id = Column(Integer, ForeignKey("orders.id"))
+    product_id = Column(Integer, ForeignKey("product.id"))
+    quantity = Column(Integer, nullable=False)
+    total_price = Column(Float, nullable=False)

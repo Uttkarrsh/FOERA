@@ -3,9 +3,9 @@ from typing import List
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
 from auth import hash_password, verify_password, create_access_token, decode_access_token
-from models import User, Products, Wishlist, Cart, Address
+from models import User, Products, Wishlist, Cart, Address, Order, OrderItem
 from datetime import datetime
-from schema import UserCreate, UserResponse, UserLogin, Token, ProductCreate, ProductResponse, WishlistItemResponse, CartItemCreate,CartItemResponse, CheckoutResponse, AddressCreate, AddressResponse
+from schema import UserCreate, UserResponse, UserLogin, Token, ProductCreate, ProductResponse, WishlistItemResponse, CartItemCreate,CartItemResponse, CheckoutResponse, AddressCreate, AddressResponse, OrderResponse
 
 
 app = FastAPI()
@@ -90,7 +90,7 @@ def add_to_wishlist(user_id: int = Path(..., title="User ID"), product_id: int =
 
 @app.get("/user/{user_id}/wishlist", response_model=List[WishlistItemResponse])
 def get_wishlist(user_id: int, db: Session = Depends(get_db)):
-    # Check if user exists
+  
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -138,16 +138,13 @@ def get_products_by_category(category_name: str, db: Session = Depends(get_db)):
 
 
 @app.get("/user/{user_id}/checkout", response_model=CheckoutResponse)
-def checkout(user_id: int, db: Session = Depends(get_db)):
-    # Check if user exists
+def get_checkout(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Get all cart items for the user
     cart_items = db.query(Cart).filter(Cart.user_id == user_id).all()
 
-    # Calculate total cost
     total_cost = 0.0
     cart_items_response = []
 
@@ -169,7 +166,15 @@ def checkout(user_id: int, db: Session = Depends(get_db)):
             )
         ))
 
-    return {"cart_items": cart_items_response, "total_cost": total_cost}
+    latest_order = db.query(Order).filter(Order.user_id == user_id).order_by(Order.created_at.desc()).first()
+    order_id = latest_order.id if latest_order else None
+
+    return CheckoutResponse(
+        order_id=order_id,
+        cart_items=cart_items_response,
+        total_cost=total_cost
+    )
+
 
 
 @app.post("/user/{user_id}/address", response_model=AddressResponse)
@@ -193,3 +198,75 @@ def create_address(user_id: int, address: AddressCreate, db: Session = Depends(g
     db.refresh(new_address)
     
     return new_address
+
+@app.post("/user/{user_id}/checkout", response_model=CheckoutResponse)
+def checkout(user_id: int, db: Session = Depends(get_db)):
+    # Step 1: Verify user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Step 2: Get all cart items for the user
+    cart_items = db.query(Cart).filter(Cart.user_id == user_id).all()
+    if not cart_items:
+        raise HTTPException(status_code=400, detail="Cart is empty")
+
+    # Step 3: Ensure user has an address
+    address = db.query(Address).filter(Address.user_id == user_id).first()
+    if not address:
+        raise HTTPException(status_code=400, detail="No address found. Add an address before checkout.")
+
+    # Step 4: Calculate total cost
+    total_cost = 0.0
+    cart_items_response = []
+
+    for item in cart_items:
+        product = db.query(Products).filter(Products.id == item.product_id).first()
+        total_cost += item.quantity * product.cost
+
+        # Create a cart item response for each product
+        cart_items_response.append(CartItemResponse(
+            id=item.id,
+            quantity=item.quantity,
+            user_id=item.user_id,
+            created_at=item.created_at,
+            product=ProductResponse(
+                id=product.id,
+                name=product.name,
+                category=product.category,
+                image=product.image,
+                created_at=product.created_at,
+                cost=product.cost
+            )
+        ))
+
+    # Step 5: Create an Order
+    order = Order(user_id=user_id, total_cost=total_cost)
+    db.add(order)
+    db.commit()
+    db.refresh(order)
+
+    # Step 6: Create Order Items
+    for item in cart_items:
+        product = db.query(Products).filter(Products.id == item.product_id).first()
+        order_item = OrderItem(
+            order_id=order.id,
+            product_id=product.id,
+            quantity=item.quantity,
+            total_price=item.quantity * product.cost
+        )
+        db.add(order_item)
+
+    db.commit()
+
+    # Step 7: Clear the user's cart
+    # db.query(Cart).filter(Cart.user_id == user_id).delete()
+    # db.commit()
+
+    # Step 8: Return checkout response
+    return CheckoutResponse(
+        order_id=order.id,
+        cart_items=cart_items_response,
+        total_cost=total_cost
+    )
+
