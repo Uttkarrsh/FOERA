@@ -129,6 +129,23 @@ def get_cart_items(user_id: int, db: Session = Depends(get_db)):
     cart_items = db.query(Cart).filter(Cart.user_id == user_id).all()
     return cart_items
 
+@app.delete("/user/{user_id}/cart/{product_id}", status_code=204)
+def remove_from_cart(user_id: int = Path(..., title="User ID"), product_id: int = Path(..., title="Product ID"), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    cart_item = db.query(Cart).filter(Cart.user_id == user_id, Cart.product_id == product_id).first()
+    if not cart_item:
+        raise HTTPException(status_code=404, detail="Product not found in cart")
+
+    db.delete(cart_item)
+    db.commit()
+
+    return {"detail": "Product removed from cart successfully"}
+
+
+
 @app.get("/category/{category_name}", response_model=List[ProductResponse])
 def get_products_by_category(category_name: str, db: Session = Depends(get_db)):
     products = db.query(Products).filter(Products.category == category_name).all()
