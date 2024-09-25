@@ -226,12 +226,12 @@ def get_checkout(user_id: int, db: Session = Depends(get_db)):
 
 @app.post("/user/{user_id}/address", response_model=AddressResponse)
 def create_address(user_id: int, address: AddressCreate, db: Session = Depends(get_db)):
-    # Check if user exists
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
     new_address = Address(
+        name = address.name,
         address_line1=address.address_line1,
         address_line2=address.address_line2,
         city=address.city,
@@ -247,29 +247,44 @@ def create_address(user_id: int, address: AddressCreate, db: Session = Depends(g
     return new_address
 
 
-@app.get("/user/{user_id}/address", response_model=AddressResponse)
+@app.get("/user/{user_id}/address", response_model=List[AddressResponse])
 def get_address(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    address = db.query(Address).filter(Address.user_id == user_id).first()
+    addresses = db.query(Address).filter(Address.user_id == user_id).all()
+    if not addresses:
+        raise HTTPException(status_code=404, detail="No addresses found for this user.")
+
+    return addresses
+
+
+@app.get("/user/{user_id}/address/{address_id}", response_model=AddressResponse)
+def get_single_address(user_id: int, address_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Fetch the specific address
+    address = db.query(Address).filter(Address.id == address_id, Address.user_id == user_id).first()
     if not address:
         raise HTTPException(status_code=404, detail="Address not found")
 
     return address
 
 
-@app.put("/user/{user_id}/address", response_model=AddressResponse)
-def update_address(user_id: int, address: AddressCreate, db: Session = Depends(get_db)):
+@app.put("/user/{user_id}/address/{address_id}", response_model=AddressResponse)
+def update_address(user_id: int, address_id: int, address: AddressCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    existing_address = db.query(Address).filter(Address.user_id == user_id).first()
+    existing_address = db.query(Address).filter(Address.id == address_id, Address.user_id == user_id).first()
     if not existing_address:
         raise HTTPException(status_code=404, detail="Address not found")
 
+    existing_address.name = address.name
     existing_address.address_line1 = address.address_line1
     existing_address.address_line2 = address.address_line2
     existing_address.city = address.city
@@ -280,6 +295,7 @@ def update_address(user_id: int, address: AddressCreate, db: Session = Depends(g
     db.refresh(existing_address)
 
     return existing_address
+
 
 
 

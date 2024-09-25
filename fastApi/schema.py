@@ -1,4 +1,5 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 from datetime import datetime
 from typing import List
 
@@ -11,7 +12,7 @@ class UserResponse(BaseModel):
     name: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class UserLogin(BaseModel):
     name: str
@@ -40,14 +41,14 @@ class ProductResponse(BaseModel):
     cost:float
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class WishlistItemResponse(BaseModel):
     user_id: int
     product: ProductResponse
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CartItemCreate(BaseModel):
     quantity: float
@@ -60,13 +61,14 @@ class CartItemResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CheckoutResponse(BaseModel):
     cart_items: List[CartItemResponse]
     total_cost: float
 
 class AddressCreate(BaseModel):
+    name: Optional[str]
     address_line1: str
     address_line2: str
     city: str
@@ -75,6 +77,7 @@ class AddressCreate(BaseModel):
 
 class AddressResponse(BaseModel):
     id: int
+    name: Optional[str]
     address_line1: str
     address_line2: str
     city: str
@@ -83,7 +86,7 @@ class AddressResponse(BaseModel):
     user_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
     
 class OrderResponse(BaseModel):
     message: str
@@ -92,7 +95,7 @@ class OrderResponse(BaseModel):
     cart_items: List[CartItemResponse]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CheckoutResponse(BaseModel):
     order_id: int
@@ -100,4 +103,4 @@ class CheckoutResponse(BaseModel):
     total_cost: float
 
     class Config:
-        orm_mode = True
+        from_attributes = True
